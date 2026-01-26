@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+from fastapi import HTTPException
+
+
+def http_error(status_code: int, code: str, message: str) -> HTTPException:
+    return HTTPException(status_code=status_code, detail={"code": code, "message": message})
+
+
+class ErrorCodes:
+    AUTH_INVALID_CREDENTIALS = "AUTH_INVALID_CREDENTIALS"
+    AUTH_EMAIL_ALREADY_EXISTS = "AUTH_EMAIL_ALREADY_EXISTS"
+
+    MEAL_PARSE_FAILED = "MEAL_PARSE_FAILED"
+    MEAL_NOT_FOUND = "MEAL_NOT_FOUND"
+
+    TELEGRAM_NOT_LINKED = "TELEGRAM_NOT_LINKED"
+    TELEGRAM_ALREADY_LINKED = "TELEGRAM_ALREADY_LINKED"
+    TELEGRAM_LINK_CODE_INVALID = "TELEGRAM_LINK_CODE_INVALID"
+    TELEGRAM_LINK_CODE_EXPIRED = "TELEGRAM_LINK_CODE_EXPIRED"
+    TELEGRAM_WEBHOOK_UNAUTHORIZED = "TELEGRAM_WEBHOOK_UNAUTHORIZED"

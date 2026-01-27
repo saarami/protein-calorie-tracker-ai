@@ -1,0 +1,71 @@
+#!/bin/bash
+set -euo pipefail
+
+REPO_SSH_URL="${repo_ssh_url}"
+SSM_PATH="${ssm_path}"
+APP_PORT="${app_port}"
+
+# --- basic packages ---
+dnf -y update
+dnf -y install git jq docker
+
+systemctl enable docker
+systemctl start docker
+
+# Docker Compose plugin (Amazon Linux 2023 supports it via dnf)
+dnf -y install docker-compose-plugin || true
+
+# --- prepare ssh for github deploy key ---
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+
+# Pull deploy key from SSM and write it to id_ed25519
+GITHUB_KEY=$(aws ssm get-parameter --name "${SSM_PATH}/GITHUB_DEPLOY_KEY" --with-decryption --query "Parameter.Value" --output text --region eu-central-1)
+echo "${GITHUB_KEY}" > /root/.ssh/id_ed25519
+chmod 600 /root/.ssh/id_ed25519
+
+ssh-keyscan -t rsa github.com >> /root/.ssh/known_hosts
+chmod 600 /root/.ssh/known_hosts
+
+cat >/root/.ssh/config <<'EOF'
+Host github.com
+  IdentityFile /root/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking yes
+EOF
+chmod 600 /root/.ssh/config
+
+# --- clone repo ---
+mkdir -p /opt/app
+cd /opt/app
+
+if [ ! -d repo ]; then
+  git clone "${REPO_SSH_URL}" repo
+fi
+
+cd /opt/app/repo/backend
+
+# --- fetch all app secrets from SSM path into .env.prod ---
+# We expect keys:
+# DATABASE_URL, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, OPENAI_API_KEY
+PARAMS_JSON=$(aws ssm get-parameters-by-path --path "${SSM_PATH}" --with-decryption --recursive --query "Parameters[].{Name:Name,Value:Value}" --output json --region eu-central-1)
+
+# Create env file
+ENV_FILE="/opt/app/repo/.env.prod"
+rm -f "${ENV_FILE}"
+touch "${ENV_FILE}"
+chmod 600 "${ENV_FILE}"
+
+echo "${PARAMS_JSON}" | jq -r '.[] | "\(.Name)=\(.Value)"' | while read -r line; do
+  # Convert full parameter name to KEY only (last path segment)
+  FULL_NAME="${line%%=*}"
+  VALUE="${line#*=}"
+  KEY="${FULL_NAME##*/}"
+  echo "${KEY}=${VALUE}" >> "${ENV_FILE}"
+done
+
+# --- run docker compose prod ---
+# expects docker-compose.prod.yml in repo root
+docker compose -f docker-compose.prod.yml up -d --build
+
+echo "DONE. App should listen on port ${APP_PORT}."

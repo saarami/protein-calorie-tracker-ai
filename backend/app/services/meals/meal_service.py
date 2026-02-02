@@ -53,15 +53,20 @@ class MealService:
     def list(self, user_id: uuid.UUID, date: datetime.date | None, limit: int, offset: int):
         return self.repo.list_by_user(user_id=user_id, date=date, limit=limit, offset=offset)
 
-    def delete(self, meal_id: uuid.UUID) -> None:
-        meal = self.get(meal_id)
+    def delete(self, meal_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        meal = self.get_owned(meal_id, user_id)
         self.repo.delete(meal)
 
-    def patch(self, meal_id: uuid.UUID, title: str | None, items: list[dict] | None):
-        meal = self.get(meal_id)
-
+    def patch(self, meal_id: uuid.UUID, user_id: uuid.UUID, title: str | None, items: list[dict] | None):
+        meal = self.get_owned(meal_id, user_id)
         if items is not None:
             meal.total_calories = sum(it["calories"] for it in items)
-            meal.total_protein_g = sum(Decimal(it["protein_g"]) for it in items)
-
+            meal.total_protein_g = sum(Decimal(it["protein_g"]) for it in items)    
         return self.repo.patch(meal, title=title, items=items)
+
+    #IDOR (Insecure Direct Object Reference) protection
+    def get_owned(self, meal_id: uuid.UUID, user_id: uuid.UUID):
+        meal = self.repo.get_by_id_for_user(meal_id, user_id)
+        if meal is None:
+            raise http_error(404, ErrorCodes.MEAL_NOT_FOUND, "Meal not found")
+        return meal

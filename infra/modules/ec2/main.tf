@@ -18,9 +18,9 @@ resource "aws_iam_role" "ec2" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
-      Effect = "Allow",
+      Effect    = "Allow",
       Principal = { Service = "ec2.amazonaws.com" },
-      Action = "sts:AssumeRole"
+      Action    = "sts:AssumeRole"
     }]
   })
 }
@@ -48,9 +48,9 @@ resource "aws_iam_role_policy" "ec2_inline" {
         Resource = "*"
       },
       {
-        Sid    = "DecryptSSM",
-        Effect = "Allow",
-        Action = ["kms:Decrypt"],
+        Sid      = "DecryptSSM",
+        Effect   = "Allow",
+        Action   = ["kms:Decrypt"],
         Resource = "*"
       },
       {
@@ -77,12 +77,17 @@ resource "aws_instance" "this" {
   iam_instance_profile        = aws_iam_instance_profile.ec2.name
   associate_public_ip_address = true
 
+  root_block_device {
+  volume_size = 20
+  volume_type = "gp3"
+  }
+
   user_data = templatefile("${path.module}/user_data.sh.tftpl", {
-    repo_ssh_url   = var.repo_ssh_url
-    ssm_path       = var.ssm_path_prefix
-    app_port       = var.app_port
-    project_name   = var.project_name
-    environment    = var.environment
+    repo_ssh_url = var.repo_ssh_url
+    ssm_path     = var.ssm_path_prefix
+    app_port     = var.app_port
+    project_name = var.project_name
+    environment  = var.environment
   })
 
   tags = {

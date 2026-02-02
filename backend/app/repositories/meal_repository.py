@@ -136,3 +136,7 @@ class MealRepository:
         total_protein = sum(m.total_protein_g for m in meals)
 
         return meals, total_calories, total_protein
+    
+    def get_by_id_for_user(self, meal_id: uuid.UUID, user_id: uuid.UUID) -> Meal | None:
+        return (self.db.query(Meal).options(selectinload(Meal.items)).filter(Meal.id == meal_id, Meal.user_id == user_id).one_or_none())
+

@@ -15,7 +15,7 @@ module "ec2" {
   ec2_security_group_id = module.vpc.ec2_security_group_id
 
   key_name        = var.ec2_key_name
-  repo_ssh_url     = var.repo_ssh_url
-  ssm_path_prefix  = var.ssm_path_prefix
-  app_port         = 8001
+  repo_ssh_url    = var.repo_ssh_url
+  ssm_path_prefix = var.ssm_path_prefix
+  app_port        = 8001
 }

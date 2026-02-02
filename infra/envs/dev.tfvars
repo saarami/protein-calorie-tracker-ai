@@ -1,6 +1,6 @@
 project_name     = "protein-calorie-tracker"
 environment      = "dev"
 ssh_ingress_cidr = "5.29.21.152/32"
-ec2_key_name    = "protein-dev-key"
+ec2_key_name     = "protein-dev-key"
 repo_ssh_url     = "git@github.com:saarami/protein-calorie-tracker-ai.git"
 ssm_path_prefix  = "/protein-calorie-tracker/dev"

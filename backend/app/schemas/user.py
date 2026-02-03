@@ -4,7 +4,7 @@ import datetime
 import uuid
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
 class UserOut(BaseModel):
@@ -18,5 +18,5 @@ class UserOut(BaseModel):
 
 
 class UserGoalsUpdate(BaseModel):
-    goal_calories: int | None = None
-    goal_protein_g: Decimal | None = None
+    goal_calories: int | None = Field(default=None, ge=0)
+    goal_protein_g: Decimal | None = Field(default=None, ge=0)

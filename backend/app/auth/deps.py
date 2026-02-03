@@ -17,8 +17,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
 def _unauthorized():
-    raise http_error(401, ErrorCodes.AUTH_INVALID_CREDENTIALS, "Invalid token")
-
+    raise http_error(401,ErrorCodes.AUTH_UNAUTHORIZED,"Not authenticated",)
 
 def get_current_user(
     db: Session = Depends(get_db),

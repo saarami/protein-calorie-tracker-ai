@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.auth.jwt import create_access_token
@@ -45,17 +44,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
 
     user = repo.get_by_email(payload.email)
     if not user or not verify_password(payload.password, user.hashed_password):
-        raise http_error(401, ErrorCodes.AUTH_INVALID_CREDENTIALS, "Invalid credentials")
-
-    return _token_response(str(user.id))
-
-
-@router.post("/token", response_model=TokenResponse)
-def token(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> TokenResponse:
-    repo = UserRepository(db)
-
-    user = repo.get_by_email(form.username)
-    if not user or not verify_password(form.password, user.hashed_password):
         raise http_error(401, ErrorCodes.AUTH_INVALID_CREDENTIALS, "Invalid credentials")
 
     return _token_response(str(user.id))

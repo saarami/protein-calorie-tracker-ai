@@ -4,7 +4,7 @@ import datetime
 import uuid
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class MealItemIn(BaseModel):
@@ -44,5 +44,16 @@ class MealOut(BaseModel):
     raw_text: str
     meal_date: datetime.date
     created_at: datetime.datetime
-    totals: MealTotals
     items: list[MealItemOut]
+
+    # Pulled from ORM, excluded from API output; used to compute `totals`.
+    total_calories: Decimal | int = Field(exclude=True, repr=False)
+    total_protein_g: Decimal = Field(exclude=True, repr=False)
+
+    @computed_field
+    @property
+    def totals(self) -> MealTotals:
+        return MealTotals(
+            calories=int(self.total_calories),
+            protein_g=self.total_protein_g,
+        )

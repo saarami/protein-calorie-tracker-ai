@@ -1,17 +1,37 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
       - name: Deploy via AWS SSM (RunShellScript)
         run: |
           set -euo pipefail
 
-          COMMANDS_JSON=$(cat <<'JSON'
-          {"commands":["cd ${{ secrets.APP_DIR }}","sudo docker compose -f ${{ secrets.COMPOSE_FILE }} up -d --build"]}
-JSON
-          )
+          COMMANDS=$(jq -nc \
+            --arg app_dir "${{ secrets.APP_DIR }}" \
+            --arg compose_file "${{ secrets.COMPOSE_FILE }}" \
+            '[ "cd \($app_dir)", "sudo docker compose -f \($compose_file) up -d --build" ]')
 
           CMD_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy via GitHub Actions" \
-            --parameters "$COMMANDS_JSON" \
+            --parameters commands="$COMMANDS" \
             --region "${{ secrets.AWS_REGION }}" \
             --query "Command.CommandId" \
             --output text)

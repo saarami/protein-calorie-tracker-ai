@@ -23,20 +23,14 @@ jobs:
           role-to-assume: arn:aws:iam::016084273614:role/github-actions-deploy-role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Resolve EC2 public IP
+      - name: Debug instance networking
         run: |
-          IP=$(aws ec2 describe-instances \
-            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-            --region "${{ secrets.AWS_REGION }}" \
-            --query "Reservations[0].Instances[0].PublicIpAddress" \
-            --output text)
+          aws ec2 describe-instances \
+          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+          --region "${{ secrets.AWS_REGION }}" \
+          --query "Reservations[0].Instances[0].{State:State.Name,PublicIp:PublicIpAddress,PublicDns:PublicDnsName,SubnetId:SubnetId,VpcId:VpcId}" \
+          --output json
 
-          if [ "$IP" = "None" ] || [ -z "$IP" ]; then
-            echo "Instance has no Public IP (is it stopped?)"
-            exit 1
-          fi
-
-          echo "EC2_HOST=$IP" >> $GITHUB_ENV
 
       - name: Setup SSH key
         run: |

@@ -1,40 +1,10 @@
-name: Deploy
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
-permissions:
-  id-token: write
-  contents: read
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::016084273614:role/github-actions-deploy-role
-          aws-region: ${{ secrets.AWS_REGION }}
-
       - name: Deploy via AWS SSM (RunShellScript)
         run: |
           set -euo pipefail
 
           COMMANDS_JSON=$(cat <<'JSON'
-          {
-            "commands": [
-              "cd ${{ secrets.APP_DIR }}",
-              "sudo docker compose -f ${{ secrets.COMPOSE_FILE }} up -d --build"
-            ]
-          }
-          JSON
+          {"commands":["cd ${{ secrets.APP_DIR }}","sudo docker compose -f ${{ secrets.COMPOSE_FILE }} up -d --build"]}
+JSON
           )
 
           CMD_ID=$(aws ssm send-command \

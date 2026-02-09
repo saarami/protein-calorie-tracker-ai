@@ -23,39 +23,58 @@ jobs:
           role-to-assume: arn:aws:iam::016084273614:role/github-actions-deploy-role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Resolve EC2 public IP
+      # ---- DEBUG: הדפסה מלאה של נתוני ה-Instance ----
+      - name: Dump instance details (debug)
         run: |
-          IP=$(aws ec2 describe-instances \
-          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-          --region "${{ secrets.AWS_REGION }}" \
-          --query "Reservations[0].Instances[0].PublicIpAddress" \
-          --output text)
+          set -euo pipefail
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}"
+          echo "EC2_INSTANCE_ID=${{ secrets.EC2_INSTANCE_ID }}"
 
-          if [ "$IP" = "None" ] || [ -z "$IP" ]; then
-            echo "Instance has no Public IP"
+          aws ec2 describe-instances \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query "Reservations[0].Instances[0].{
+              State:State.Name,
+              PublicIp:PublicIpAddress,
+              PublicDns:PublicDnsName,
+              PrivateIp:PrivateIpAddress,
+              SubnetId:SubnetId,
+              VpcId:VpcId,
+              NetworkAssociation:NetworkInterfaces[0].Association
+            }" \
+            --output json
+
+      # ---- ניסיון חילוץ IP (בלי fail) ----
+      - name: Resolve EC2 public IP (debug)
+        run: |
+          set -euo pipefail
+          IP=$(aws ec2 describe-instances \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+
+          echo "Resolved PublicIpAddress='$IP'"
+          echo "EC2_HOST=$IP" >> $GITHUB_ENV
+
+      # ---- בדיקה מפורשת לפני SSH ----
+      - name: Validate EC2_HOST
+        run: |
+          if [ -z "${EC2_HOST:-}" ] || [ "$EC2_HOST" = "None" ]; then
+            echo "EC2_HOST is empty or None – cannot SSH"
             exit 1
           fi
-
-          echo "EC2_HOST=$IP" >> $GITHUB_ENV
-          echo "Resolved EC2_HOST=$IP"
-
-      - name: Debug instance networking
-        run: |
-          aws ec2 describe-instances \
-          --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-          --region "${{ secrets.AWS_REGION }}" \
-          --query "Reservations[0].Instances[0].{State:State.Name,PublicIp:PublicIpAddress,PublicDns:PublicDnsName,SubnetId:SubnetId,VpcId:VpcId}" \
-          --output json
-
+          echo "Using EC2_HOST=$EC2_HOST"
 
       - name: Setup SSH key
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "${{ env.EC2_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Deploy via Docker Compose
         run: |
-          ssh -i ~/.ssh/id_ed25519 "${{ secrets.EC2_USER }}@${{ env.EC2_HOST }}" \
+          ssh -i ~/.ssh/id_ed25519 "${{ secrets.EC2_USER }}@$EC2_HOST" \
             "cd '${{ secrets.APP_DIR }}' && sudo docker compose -f '${{ secrets.COMPOSE_FILE }}' up -d --build"

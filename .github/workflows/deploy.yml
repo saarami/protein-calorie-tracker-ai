@@ -23,58 +23,28 @@ jobs:
           role-to-assume: arn:aws:iam::016084273614:role/github-actions-deploy-role
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # ---- DEBUG: הדפסה מלאה של נתוני ה-Instance ----
-      - name: Dump instance details (debug)
+      - name: Deploy via AWS SSM (RunShellScript)
         run: |
           set -euo pipefail
-          echo "AWS_REGION=${{ secrets.AWS_REGION }}"
-          echo "EC2_INSTANCE_ID=${{ secrets.EC2_INSTANCE_ID }}"
-
-          aws ec2 describe-instances \
+          CMD_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy via GitHub Actions" \
+            --parameters commands="cd '${{ secrets.APP_DIR }}' && sudo docker compose -f '${{ secrets.COMPOSE_FILE }}' up -d --build" \
             --region "${{ secrets.AWS_REGION }}" \
-            --query "Reservations[0].Instances[0].{
-              State:State.Name,
-              PublicIp:PublicIpAddress,
-              PublicDns:PublicDnsName,
-              PrivateIp:PrivateIpAddress,
-              SubnetId:SubnetId,
-              VpcId:VpcId,
-              NetworkAssociation:NetworkInterfaces[0].Association
-            }" \
-            --output json
-
-      # ---- ניסיון חילוץ IP (בלי fail) ----
-      - name: Resolve EC2 public IP (debug)
-        run: |
-          set -euo pipefail
-          IP=$(aws ec2 describe-instances \
-            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
-            --region "${{ secrets.AWS_REGION }}" \
-            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --query "Command.CommandId" \
             --output text)
 
-          echo "Resolved PublicIpAddress='$IP'"
-          echo "EC2_HOST=$IP" >> $GITHUB_ENV
+          echo "CommandId=$CMD_ID"
 
-      # ---- בדיקה מפורשת לפני SSH ----
-      - name: Validate EC2_HOST
-        run: |
-          if [ -z "${EC2_HOST:-}" ] || [ "$EC2_HOST" = "None" ]; then
-            echo "EC2_HOST is empty or None – cannot SSH"
-            exit 1
-          fi
-          echo "Using EC2_HOST=$EC2_HOST"
+          aws ssm wait command-executed \
+            --command-id "$CMD_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}"
 
-      - name: Setup SSH key
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
-
-      - name: Deploy via Docker Compose
-        run: |
-          ssh -i ~/.ssh/id_ed25519 "${{ secrets.EC2_USER }}@$EC2_HOST" \
-            "cd '${{ secrets.APP_DIR }}' && sudo docker compose -f '${{ secrets.COMPOSE_FILE }}' up -d --build"
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query "{Status:Status,Stdout:StandardOutputContent,Stderr:StandardErrorContent}" \
+            --output json

@@ -1,0 +1,51 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::016084273614:role/github-actions-deploy-role
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Resolve EC2 public IP
+        run: |
+          IP=$(aws ec2 describe-instances \
+            --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
+            --region "${{ secrets.AWS_REGION }}" \
+            --query "Reservations[0].Instances[0].PublicIpAddress" \
+            --output text)
+
+          if [ "$IP" = "None" ] || [ -z "$IP" ]; then
+            echo "Instance has no Public IP (is it stopped?)"
+            exit 1
+          fi
+
+          echo "EC2_HOST=$IP" >> $GITHUB_ENV
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ env.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy via Docker Compose
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${{ secrets.EC2_USER }}@${{ env.EC2_HOST }}" \
+            "cd '${{ secrets.APP_DIR }}' && sudo docker compose -f '${{ secrets.COMPOSE_FILE }}' up -d --build"

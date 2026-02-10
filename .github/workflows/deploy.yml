@@ -28,11 +28,37 @@ jobs:
         run: |
           set -euo pipefail
 
+          # NOTE:
+          # - This updates the repo on the EC2 instance (git fetch/reset),
+          # - then rebuilds & restarts containers.
+          # - It also prints the git SHA before and after update for verification.
+
           CMD_ID=$(aws ssm send-command \
             --instance-ids "${{ secrets.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy via GitHub Actions" \
-            --parameters 'commands=["cd ${{ secrets.APP_DIR }}","sudo docker compose -f ${{ secrets.COMPOSE_FILE }} up -d --build"]' \
+            --parameters '{
+              "commands": [
+                "set -euo pipefail",
+                "cd ${{ secrets.APP_DIR }}",
+
+                "echo \"--- BEFORE ---\"",
+                "git rev-parse --short HEAD || true",
+                "git status -sb || true",
+
+                "git fetch origin main",
+                "git checkout main",
+                "git reset --hard origin/main",
+                "git clean -fd",
+
+                "echo \"--- AFTER ---\"",
+                "git rev-parse --short HEAD",
+                "git status -sb",
+
+                "sudo docker compose -f ${{ secrets.COMPOSE_FILE }} up -d --build",
+                "sudo docker compose -f ${{ secrets.COMPOSE_FILE }} ps"
+              ]
+            }' \
             --region "${{ secrets.AWS_REGION }}" \
             --query "Command.CommandId" \
             --output text)

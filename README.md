@@ -49,27 +49,28 @@ This project demonstrates how to build, deploy, and operate a real‑world REST 
 
 ## 🧱 Architecture Overview
 
-┌───────────┐
-│   Client  │  (Postman / Telegram / Future Frontend)
-└─────┬─────┘
-      │ HTTP
-┌─────▼─────┐
-│  Routers  │  (FastAPI endpoints)
-│ (Schemas) │  ← Request / Response validation
-└─────┬─────┘
-┌─────▼─────┐
-│  Services │  (Business logic)
-└─────┬─────┘
-┌─────▼─────┐
-│Repositories│ (Persistence layer)
-└─────┬─────┘
-┌─────▼─────┐
-│   Models  │  (SQLAlchemy ORM)
-└─────┬─────┘
-┌─────▼─────┐
-│ Database  │  (PostgreSQL)
-└───────────┘
-
+```text
+┌───────────────┐
+│     Client    │  (Postman / Telegram / Future Frontend)
+└───────┬───────┘
+        │ HTTP
+┌───────▼───────┐
+│    Routers    │  (FastAPI endpoints)
+│   (Schemas)   │  Request / Response validation
+└───────┬───────┘
+┌───────▼───────┐
+│    Services   │  (Business logic)
+└───────┬───────┘
+┌───────▼───────┐
+│  Repositories │  (Persistence layer)
+└───────┬───────┘
+┌───────▼───────┐
+│     Models    │  (SQLAlchemy ORM)
+└───────┬───────┘
+┌───────▼───────┐
+│    Database   │  (PostgreSQL)
+└───────────────┘
+```
 
 ---
 
@@ -77,7 +78,7 @@ This project demonstrates how to build, deploy, and operate a real‑world REST 
 
 | Category | Technology |
 |--------|------------|
-| Language   | Python 3.11 |
+| Language | Python 3.11 |
 | Framework | FastAPI |
 | Database | PostgreSQL |
 | ORM | SQLAlchemy |

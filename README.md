@@ -1,8 +1,8 @@
 # 🥗 Protein Tracker – Backend REST API
 
-A **production‑grade backend system** for calorie and protein tracking, designed with clean architecture principles, scalability in mind, and modern backend best practices.
+A **production‑grade backend system** for calorie and protein tracking, built with clean architecture principles and scalability in mind. The system supports a simple and intuitive nutrition tracking experience, enabling users to log meals in free text, automatically receive calorie and protein estimates, set daily goals, and track their progress over time.
 
-This project demonstrates how to build, deploy, and operate a real‑world REST API using Python, FastAPI, cloud infrastructure, CI/CD, and integrations.
+This project demonstrates how to design, deploy, and maintain a real-world REST API using Python, FastAPI, cloud infrastructure, CI/CD pipelines, and external integrations in a production-oriented setup.
 
 ---
 
